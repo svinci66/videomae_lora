@@ -1,0 +1,105 @@
+
+# 数据集相关配置
+data:
+  dataset: "RainSynAll100"
+  image_size: 128
+  channels: 3
+  num_workers: 8
+  data_dir: "/data/sj/tic_2_7/data/TIC" # 之前是 /data/sj/videomae_hf，已更新
+  conditional: True
+  #labels: ['None', 'face-tic', 'head-tic', 'body-tic', 'vocal-tic'] # 这是一个自定义添加的字段，用于 labels
+  labels: ['None', 'face-tic']
+  
+  training:
+    batch_size: 8 # 之前是 4，已更新
+    patch_n: 16
+    n_epochs: 50
+    snapshot_freq: 10
+    validation_freq: 10000
+
+  sampling:
+    batch_size: 2 # 之前是 4，已更新
+    last_only: True
+
+# 模型相关配置
+model:
+  model_name: "/data/sj/videomae_hf/videomae-base-finetuned-kinetics" # HuggingFace 路径或本地路径
+  num_classes: 5
+  
+  # LoRA 配置
+  use_lora: true
+  lora_config:
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0.1
+    target_modules: ["query", "value"]
+  
+  # 原 tic.yml 中的 VQmodel 和 Dit 配置似乎未在 videomae_lora 中直接使用，但保留以备参考
+  in_channels: 3
+  out_ch: 3
+  ch: 128
+  ch_mult: [1, 2, 3, 4]
+  num_res_blocks: 2
+  attn_resolutions: [32,]
+  dropout: 0.0
+  ema_rate: 0.999
+  ema: True
+  resamp_with_conv: True
+
+# VQModel 配置 (保留)
+VQmodel:
+  double_z: False
+  z_channels: 3
+  resolution: 256
+  in_channels: 3
+  out_ch: 3
+  ch: 128
+  ch_mult: [ 1,2,4 ] 
+  num_res_blocks: 2
+  attn_resolutions: [ ]
+  dropout: 0.0
+  embed_dim: 3
+  n_embed: 8192
+  beta: 0.25
+
+# DiT 配置 (保留)
+Dit:
+  hidden_size: 1152
+  depth: 28
+  num_heads: 16
+  mlp_ratio: 4.0
+  learn_sigma: False
+
+# Diffusion 配置 (保留)
+diffusion:
+  beta_schedule: linear
+  beta_start: 0.0001
+  beta_end: 0.02
+  num_diffusion_timesteps: 1000
+
+# 优化器配置
+optim:
+  weight_decay: 0.000
+  optimizer: "Adam"
+  lr: 0.0001
+  amsgrad: False
+  eps: 0.00000001
+
+# 训练参数 (整合后的)
+train:
+  is_train: true
+  seed: 61
+  device_ids: [0]
+  # num_epochs 优先使用 data.training.n_epochs，这里保留作为备用或覆盖
+  num_epochs: 50 
+  sample_frames: 16 
+  
+  # 路径
+  save_pic: "./out_pic/"
+  save_ckp: "./ckp/"
+  
+  # 优化器 (映射到 optim)
+  optimizer:
+    base_lr: 1e-3
+    weight_decay: 0.05
+    layer_decay: 0.8
