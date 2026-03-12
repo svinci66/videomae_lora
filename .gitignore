@@ -1,3 +1,4 @@
 ckp/
 *.mp4
 *.txt
+.env

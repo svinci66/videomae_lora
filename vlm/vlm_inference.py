@@ -4,14 +4,15 @@ import glob
 import base64
 import subprocess
 import json
-from volcenginesdkarkruntime import Ark
+from openai import OpenAI
+from dotenv import load_dotenv
 
 class VLMPredictor:
-    def __init__(self, api_key=None, base_url=None, model_endpoint_id=None):
-        self.api_key = api_key or "0b227c79-ace5-444f-ba30-88f7bf3350e7"
-        self.base_url = base_url or 'https://ark.cn-beijing.volces.com/api/v3'
-        self.model_endpoint_id = model_endpoint_id or "ep-20260112163413-gnk82"
-        self.client = Ark(base_url=self.base_url, api_key=self.api_key)
+    def __init__(self, api_key=None, base_url=None, model_name=None):
+        self.api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
+        self.base_url = base_url or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        self.model_name = model_name or "qwen3-vl-plus"
+        self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         
         # 帧标签到抽动大类的映射
         self.label_to_category = {
@@ -116,10 +117,10 @@ class VLMPredictor:
             base64_str = base64.b64encode(video_data).decode('utf-8')
         
         print(f"  Base64 长度：{len(base64_str)} 字符")
-        print(f"  正在发送请求给模型：{self.model_endpoint_id} ...")
+        print(f"  正在发送请求给模型：{self.model_name} ...")
         
-        response = self.client.chat.completions.create(
-            model=self.model_endpoint_id,
+        completion = self.client.chat.completions.create(
+            model=self.model_name,
             messages=[
                 {
                     "role": "user",
@@ -136,17 +137,27 @@ class VLMPredictor:
                         }
                     ]
                 }
-            ]
+            ],
+            stream=True,
+            extra_body={
+                'enable_thinking': False
+            }
         )
         
-        result_content = response.choices[0].message.content
+        result_content = ""
+        for chunk in completion:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            if delta.content:
+                result_content += delta.content
         
         if os.path.exists(clean_video_path) and clean_video_path != video_path:
             os.remove(clean_video_path)
         
         return result_content
     
-    def process_video(self, video_dir, output_dir, fps=10, prompt="请分析这个视频", keep_video=False):
+    def process_video(self, video_dir, output_dir, fps=10, prompt="请分析这个视频", keep_video=True):
         """处理单个视频目录"""
         video_filename = os.path.basename(video_dir) + ".mp4"
         video_path = os.path.join(output_dir, video_filename)
@@ -168,10 +179,7 @@ class VLMPredictor:
                 f.write(result)
             
             print(f"  Result saved: {txt_output_path}")
-            
-            if is_newly_created and not keep_video:
-                os.remove(video_path)
-                print(f"  Temp video removed: {video_path}")
+            print(f"  Video saved: {video_path}")
             
             return {
                 'video_dir': video_dir,
@@ -183,8 +191,6 @@ class VLMPredictor:
             
         except Exception as e:
             print(f"  Error processing {video_dir}: {str(e)}")
-            if os.path.exists(video_path) and not keep_video:
-                os.remove(video_path)
             raise
     
     def process_dataset(self, data_dir, txt_file, output_dir, is_test=False, fps=10, prompt="请分析这个视频", keep_video=False, batch_size=5, structured_prompt=None, skip_none=True):
@@ -299,6 +305,7 @@ class VLMPredictor:
 
 
 def main():
+    load_dotenv()
     data_dir = "/data/sj/tic_3_5/data/TIC"
     output_dir = "/data/sj/videomae_hf/videomae_lora/vlm/videos"
     
@@ -309,28 +316,29 @@ def main():
 你是一位专业的医疗视频分析助手，专门用于辅助分类抽动症（Tic Disorders）患者的抽动类型。
 
 # Task
-输入的视频片段中**已明确发生了抽动行为**。请仔细分析该视频，理解患者的动作特征，并从指定的分类列表中选出最匹配的抽动类型。
+输入的视频片段中已明确发生了抽动行为。请仔细分析该视频，理解患者的动作特征，并在**严格受限的大类**中选出最匹配的具体抽动类型。
 
-# 已知抽动大类
-该视频标注的抽动大类为：**{tic_category}**
-请在该大类范围内优先选择最匹配的具体动作。
+# 已知抽动大类 (Hard Constraint)
+该视频已明确标注的抽动大类为：【{tic_category}】
+**强制指令**：你的最终分类结果**必须且只能**属于【{tic_category}】旗下的小类，绝不允许跨大类选择！
 
 # Classification Criteria (分类选项)
-请严格限制在以下范围内进行选择：
-* **面部抽动**：眨眼，斜眼，皱眉，扬眉，张口，伸舌，撅嘴，歪嘴，舔嘴唇，皱鼻子。
-* **头颈抽动**：点头，仰头，摇头，转头，斜颈，耸肩。
-* **躯体抽动**：动手指，搓手，握拳，动手腕，举臂，伸展手臂，内旋手臂，动脚趾，伸腿，抖腿，踮脚，蹬足，伸膝，屈膝，伸髋，屈髋，挺胸，收腹，扭腰。
+请严格对比以下选项，但**仅激活与【{tic_category}】对应的列表**进行选择：
+* 面部抽动：眨眼，斜眼，皱眉，扬眉，张口，伸舌，撅嘴，歪嘴，舔嘴唇，皱鼻子。
+* 头颈抽动：点头，仰头，摇头，转头，斜颈，耸肩。
+* 躯体抽动：动手指，搓手，握拳，动手腕，举臂，伸展手臂，内旋手臂，动脚趾，伸腿，抖腿，踮脚，蹬足，伸膝，屈膝，伸髋，屈髋，挺胸，收腹，扭腰。
 
 # Rules & Constraints
-1.  **必须选择**：视频片段中已明确包含抽动，**严禁输出"无抽动"**，你必须给出一个确定的抽动类型。
-2.  **精准匹配**：必须且只能从上述 `Classification Criteria` 的具体动作词汇中，选择**唯一一个**最核心、最明显的动作进行输出。
-3.  **精简输出**：严格按照给定的输出格式返回结果，禁止添加任何分析过程、解释性语言、寒暄或标点符号的随意变形。
+1. 必须选择：视频片段中已明确包含抽动，严禁输出“无抽动”或“无法判断”，必须给出一个确定的抽动类型。
+2. 大类锁定（最重要）：你提取的动作词汇必须存在于【{tic_category}】对应的选项列表中。即使你认为画面中的动作看起来像其他大类，也**必须服从已知大类的约束**进行选择。
+3. 唯一单选：只能输出一个最核心、最明显的动作词汇，严禁输出多个动作（如不可输出“眨眼，皱眉”）。
+4. 精简输出：严格按照给定的输出格式返回结果，禁止添加任何分析过程、解释性语言、寒暄或标点符号的随意变形。
 
 # Output Format
 时间 [0,{duration:.2f}]：[抽动类型]
 
-*(示例 1：视频时长 2.5 秒，核心动作是眨眼 -> 返回 `时间 [0,2.50]：眨眼`)*
-*(示例 2：视频时长 4.0 秒，核心动作是耸肩 -> 返回 `时间 [0,4.00]：耸肩`)*
+*(示例 1：大类为"面部抽动"，时长 2.5 秒，核心动作是眨眼 -> 返回 `时间 [0,2.50]：眨眼`)*
+*(示例 2：大类为"头颈抽动"，时长 4.0 秒，核心动作是耸肩 -> 返回 `时间 [0,4.00]：耸肩`)*
 
 # Video Info
 * 视频名称：{video_name}
