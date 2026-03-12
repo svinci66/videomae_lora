@@ -5,15 +5,15 @@ data:
   image_size: 128
   channels: 3
   num_workers: 8
-  data_dir: "/data/sj/tic_2_7/data/TIC" # 之前是 /data/sj/videomae_hf，已更新
+  data_dir: "/data/sj/tic_3_5/data/TIC" # 之前是 /data/sj/videomae_hf，已更新
   conditional: True
   #labels: ['None', 'face-tic', 'head-tic', 'body-tic', 'vocal-tic'] # 这是一个自定义添加的字段，用于 labels
   labels: ['None', 'face-tic']
-  
+
   training:
     batch_size: 8 # 之前是 4，已更新
     patch_n: 16
-    n_epochs: 50
+    n_epochs: 100
     snapshot_freq: 10
     validation_freq: 10000
 
@@ -24,7 +24,7 @@ data:
 # 模型相关配置
 model:
   model_name: "/data/sj/videomae_hf/videomae-base-finetuned-kinetics" # HuggingFace 路径或本地路径
-  num_classes: 5
+  num_classes: 2
   
   # LoRA 配置
   use_lora: true
@@ -87,7 +87,7 @@ optim:
 
 # 训练参数 (整合后的)
 train:
-  is_train: true
+  is_train: false
   seed: 61
   device_ids: [0]
   # num_epochs 优先使用 data.training.n_epochs，这里保留作为备用或覆盖

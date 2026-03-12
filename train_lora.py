@@ -18,7 +18,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Training TIC Models with LoRA')
     parser.add_argument("--config", default='configs/config.yaml', type=str,
                         help="Path to the config file (yaml)")
-    parser.add_argument("--test_checkpoint", type=str, default=None,
+    parser.add_argument("--test_checkpoint", type=str, default='/data/sj/videomae_hf/videomae_lora/ckp/best_model.pth',
                         help="Path to checkpoint for evaluation (only used if is_train=False)")
     return parser.parse_args()
 

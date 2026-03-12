@@ -87,6 +87,13 @@ class Trainer:
         val_total = 0
         val_correct = 0
         val_loss = 0.0
+
+        # 新增：TIC分类统计指标
+        TP = 0  # True Positive: 实际是TIC，预测是TIC
+        TN = 0  # True Negative: 实际是正常，预测是正常
+        FP = 0  # False Positive: 实际是正常，预测是TIC
+        FN = 0  # False Negative: 实际是TIC，预测是正常
+        TP_xi = 0  # 细分类正确：实际是TIC且类别预测正确
         
         with torch.no_grad():
             for data, label in self.val_loader:
@@ -114,9 +121,61 @@ class Trainer:
                 val_total += B
                 val_loss += loss.item() * B
 
+                for k in range(len(preds)):
+                    # 逻辑说明：假设 0 类是 'None' (正常)，非 0 是 TIC (病态)
+                    is_tic_label = (label_flat[k] != 0)
+                    is_tic_pred = (preds[k] != 0)
+
+                    if is_tic_label and is_tic_pred:
+                        TP += 1
+                        if label_flat[k] == preds[k]:  # 细分类也正确
+                            TP_xi += 1
+                    elif not is_tic_label and not is_tic_pred:
+                        TN += 1
+                    elif is_tic_label and not is_tic_pred:
+                        FN += 1
+                    elif not is_tic_label and is_tic_pred:
+                        FP += 1
+
         avg_loss = val_loss / val_total
         acc = val_correct / val_total
         print(f"Epoch [{epoch+1}/{self.num_epochs}] Val Loss: {avg_loss:.4f} Val Acc: {acc:.4f}")
+        epsilon = 1e-9
+                # 新增：打印详细分类指标
+        if val_total > 0:
+            print(f"--- TIC分类详细统计 ---")
+            print(f"样本总数: {val_total}")
+            print(f"TP: {TP}, TN: {TN}, FP: {FP}, FN: {FN}")
+            print(f"TP_xi (细分类正确): {TP_xi}")
+            print(f"--- 性能指标 ---")
+            
+            # 准确率 (Accuracy)
+            accuracy = (TP + TN) / (TP + FN + TN + FP + epsilon)
+            print(f"二分类准确率: {accuracy:.4f}")
+            
+            # 细分类准确率
+            fine_grained_accuracy = (TP_xi + TN) / (TP + FN + TN + FP + epsilon)
+            print(f"细分类准确率: {fine_grained_accuracy:.4f}")
+            
+            # 精确率 (Precision)
+            precision = TP / (TP + FP + epsilon)
+            print(f"精确率: {precision:.4f}")
+            
+            # 召回率 (Recall)
+            recall = TP / (TP + FN + epsilon)
+            print(f"召回率: {recall:.4f}")
+            
+            # F1-Score
+            f1_score = 2 * precision * recall / (precision + recall + epsilon)
+            print(f"F1-Score: {f1_score:.4f}")
+            
+            # TPR (True Positive Rate, 即Recall)
+            tpr = recall
+            print(f"TPR (敏感度): {tpr:.4f}")
+            
+            # TNR (True Negative Rate, 特异度)
+            tnr = TN / (TN + FP + epsilon)
+            print(f"TNR (特异度): {tnr:.4f}")
         return avg_loss, acc
 
     def run(self):
