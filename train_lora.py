@@ -12,13 +12,13 @@ from utils.optimizer import get_optimizer_params
 from utils.common import dict2namespace
 from utils.engine import Trainer
 
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = "7"
 
 def get_args():
     parser = argparse.ArgumentParser(description='Training TIC Models with LoRA')
     parser.add_argument("--config", default='configs/config.yaml', type=str,
                         help="Path to the config file (yaml)")
-    parser.add_argument("--test_checkpoint", type=str, default='/data/sj/videomae_hf/videomae_lora/ckp/best_model.pth',
+    parser.add_argument("--test_checkpoint", type=str, default=None,
                         help="Path to checkpoint for evaluation (only used if is_train=False)")
     return parser.parse_args()
 
@@ -38,9 +38,16 @@ def main():
     args.sample_frames = config.train.sample_frames
 
     # Allow overriding is_train from command line via test_checkpoint presence
-    if args.test_checkpoint is not None:
-        print(f"Test checkpoint provided: {args.test_checkpoint}. Switching to EVALUATION mode.")
-        config.train.is_train = False
+    # Only switch to eval mode if is_train was True and test_checkpoint is explicitly provided
+    if args.test_checkpoint is not None and config.train.is_train:
+        # Check if checkpoint file actually exists
+        import os
+        if os.path.exists(args.test_checkpoint):
+            print(f"Test checkpoint provided: {args.test_checkpoint}. Switching to EVALUATION mode.")
+            config.train.is_train = False
+        else:
+            print(f"Checkpoint file {args.test_checkpoint} not found. Starting training from scratch.")
+            args.test_checkpoint = None
 
 
     # 2. 准备设备
@@ -102,12 +109,11 @@ def main():
     else:
         # Evaluation mode
         if args.test_checkpoint is None:
-
             raise ValueError("Please provide --test_checkpoint when is_train=False in config")
             
         print(f"Loading checkpoint from {args.test_checkpoint}")
         # Load weights
-        checkpoint = torch.load(args.test_checkpoint, map_location=device)
+        checkpoint = torch.load(args.test_checkpoint, map_location=device, weights_only=True)
         # Handle both full state dict and just model state dict if saved differently
         if 'model_state_dict' in checkpoint:
             model.load_state_dict(checkpoint['model_state_dict'])
