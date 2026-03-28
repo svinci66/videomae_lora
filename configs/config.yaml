@@ -11,9 +11,9 @@ data:
   labels: ['None', 'face-tic', 'head-tic', 'body-tic']
 
   training:
-    batch_size: 8 # 之前是 4，已更新
+    batch_size: 16 # 之前是 4，已更新
     patch_n: 16
-    n_epochs: 100
+    n_epochs: 50
     snapshot_freq: 10
     validation_freq: 10000
 

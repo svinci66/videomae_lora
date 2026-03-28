@@ -116,9 +116,31 @@ def main():
         checkpoint = torch.load(args.test_checkpoint, map_location=device, weights_only=True)
         # Handle both full state dict and just model state dict if saved differently
         if 'model_state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['model_state_dict'])
+            state_dict = checkpoint['model_state_dict']
         else:
-            model.load_state_dict(checkpoint)
+            state_dict = checkpoint
+        
+        # 检查 checkpoint 中的 classifier 形状是否匹配，不匹配则调整模型
+        checkpoint_classifier_weight_shape = None
+        for key in state_dict.keys():
+            if 'classifier.1.weight' in key:
+                checkpoint_classifier_weight_shape = state_dict[key].shape
+                break
+        
+        if checkpoint_classifier_weight_shape is not None:
+            current_shape = model.classifier[1].weight.shape
+            if checkpoint_classifier_weight_shape != current_shape:
+                print(f"Checkpoint classifier shape: {checkpoint_classifier_weight_shape}")
+                print(f"Current model classifier shape: {current_shape}")
+                print("Adjusting model classifier to match checkpoint...")
+                num_classes_from_checkpoint = checkpoint_classifier_weight_shape[0]
+                hidden_size = model_config.hidden_size
+                model.classifier = nn.Sequential(
+                    nn.LayerNorm(hidden_size),
+                    nn.Linear(hidden_size, num_classes_from_checkpoint)
+                ).to(device)
+        
+        model.load_state_dict(state_dict)
             
         loss_fn = nn.CrossEntropyLoss()
         
