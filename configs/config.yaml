@@ -8,7 +8,7 @@ data:
   data_dir: "/data/sj/tic_3_5/data/TIC" # 之前是 /data/sj/videomae_hf，已更新
   conditional: True
   #labels: ['None', 'face-tic', 'head-tic', 'body-tic', 'vocal-tic'] # 这是一个自定义添加的字段，用于 labels
-  labels: ['None', 'face-tic', 'head-tic', 'body-tic']
+  labels: ['None', 'tic']
 
   training:
     batch_size: 16 # 之前是 4，已更新
@@ -24,7 +24,7 @@ data:
 # 模型相关配置
 model:
   model_name: "/data/sj/videomae_hf/videomae-base-finetuned-kinetics" # HuggingFace 路径或本地路径
-  num_classes: 4
+  num_classes: 2
   
   # LoRA 配置
   use_lora: true

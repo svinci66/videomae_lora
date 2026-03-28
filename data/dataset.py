@@ -192,7 +192,7 @@ class TICDataset(torch.utils.data.Dataset):
                 name_without_ext = os.path.splitext(frame_list[t])[0]
                 parts = name_without_ext.rsplit('_', 1)
                 if parts[-1] != 'None':
-                    parts[-1] = 'face-tic'
+                    parts[-1] = 'tic'
                 lookup_indices = self.labels.index(parts[-1])
                 label_tensors = self.tensor_labels[lookup_indices]
                 label_frames.append(label_tensors)
@@ -237,7 +237,7 @@ class TICDataset(torch.utils.data.Dataset):
                 name_without_ext = os.path.splitext(frame_list[t])[0]
                 parts = name_without_ext.rsplit('_', 1)
                 if parts[-1] != 'None':
-                    parts[-1] = 'face-tic'
+                    parts[-1] = 'tic'
 
                 lookup_indices = self.labels.index(parts[-1])
                 label_tensors = self.tensor_labels[lookup_indices]
