@@ -54,6 +54,7 @@ class TICDataset(torch.utils.data.Dataset):
     def __init__(self, dir, transforms, isTest=False, parse_patches=True, config=None, args=None):
         super().__init__()
         self.num_frames = []
+        self.input_file = []
         self.args = args
 
         if not isTest:
@@ -65,10 +66,18 @@ class TICDataset(torch.utils.data.Dataset):
             for video in input_file:
                 frame_list = glob.glob(os.path.join(video, '*.jpg'))
                 frame_list.sort()
+                # 过滤无效文件：排除 Mac 临时文件 (._开头) 和包含"副本"的文件
+                frame_list = [f for f in frame_list if not os.path.basename(f).startswith('._') and '副本' not in os.path.basename(f)]
                 if len(frame_list) == 0:
                     raise Exception("No frames in %s" % video)
+                
+                # 过滤帧数不足的视频
+                if len(frame_list) < self.args.sample_frames:
+                    print(f"[跳过] {video}: 帧数不足 ({len(frame_list)} < {self.args.sample_frames})")
+                    continue
 
                 self.num_frames.append(len(frame_list))
+                self.input_file.append(video)
 
         else:
             test_list = dir + '/' + 'test_tic.txt'
@@ -79,12 +88,19 @@ class TICDataset(torch.utils.data.Dataset):
             for video in input_file:
                 frame_list = glob.glob(os.path.join(video, '*.jpg'))
                 frame_list.sort()
+                # 过滤无效文件：排除 Mac 临时文件 (._开头) 和包含"副本"的文件
+                frame_list = [f for f in frame_list if not os.path.basename(f).startswith('._') and '副本' not in os.path.basename(f)]
                 if len(frame_list) == 0:
                     raise Exception("No frames in %s" % video)
+                
+                # 过滤帧数不足的视频
+                if len(frame_list) < self.args.sample_frames:
+                    print(f"[跳过] {video}: 帧数不足 ({len(frame_list)} < {self.args.sample_frames})")
+                    continue
 
                 self.num_frames.append(len(frame_list))
+                self.input_file.append(video)
 
-        self.input_file = input_file
         self.dir = dir
         self.transforms = transforms
         self.config = config
@@ -175,6 +191,9 @@ class TICDataset(torch.utils.data.Dataset):
             frame_list.sort()
             #frame_list_skeletion.sort()
 
+            # 过滤无效文件：排除 Mac 临时文件 (._开头) 和包含"副本"的文件
+            frame_list = [f for f in frame_list if not os.path.basename(f).startswith('._') and '副本' not in os.path.basename(f)]
+
             # 补齐帧数
             if len(frame_list) < self.args.sample_frames:
                 frame_list += [frame_list[-1]] * (self.args.sample_frames - len(frame_list))
@@ -191,9 +210,8 @@ class TICDataset(torch.utils.data.Dataset):
 
                 name_without_ext = os.path.splitext(frame_list[t])[0]
                 parts = name_without_ext.rsplit('_', 1)
-                if parts[-1] != 'None':
-                    parts[-1] = 'tic'
-                lookup_indices = self.labels.index(parts[-1])
+                label_name = parts[-1] if parts[-1] != 'None' else 'None'
+                lookup_indices = self.labels.index(label_name)
                 label_tensors = self.tensor_labels[lookup_indices]
                 label_frames.append(label_tensors)
 
@@ -217,6 +235,9 @@ class TICDataset(torch.utils.data.Dataset):
             # input_dir_skeletion = self.add_skeleton_suffix(video, "skeleton")
             frame_list.sort()
 
+            # 过滤无效文件：排除 Mac 临时文件 (._开头) 和包含"副本"的文件
+            frame_list = [f for f in frame_list if not os.path.basename(f).startswith('._') and '副本' not in os.path.basename(f)]
+
             # 补齐帧数
             if len(frame_list) < self.args.sample_frames:
                 frame_list += [frame_list[-1]] * (self.args.sample_frames - len(frame_list))
@@ -236,10 +257,9 @@ class TICDataset(torch.utils.data.Dataset):
 
                 name_without_ext = os.path.splitext(frame_list[t])[0]
                 parts = name_without_ext.rsplit('_', 1)
-                if parts[-1] != 'None':
-                    parts[-1] = 'tic'
+                label_name = parts[-1] if parts[-1] != 'None' else 'None'
 
-                lookup_indices = self.labels.index(parts[-1])
+                lookup_indices = self.labels.index(label_name)
                 label_tensors = self.tensor_labels[lookup_indices]
                 label_frames.append(label_tensors)
 

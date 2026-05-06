@@ -5,25 +5,26 @@ data:
   image_size: 128
   channels: 3
   num_workers: 8
-  data_dir: "/data/sj/tic_3_5/data/TIC" # 之前是 /data/sj/videomae_hf，已更新
+  data_dir: "/data/sj/tic_4_23_head/TIC"
   conditional: True
-  labels: ['None', 'face-tic', 'head-tic', 'body-tic', 'vocal-tic']
+  # 2 分类：只区分 head-tic 和 None
+  labels: ['None', 'head-tic']
 
   training:
-    batch_size: 16 # 之前是 4，已更新
+    batch_size: 16
     patch_n: 16
     n_epochs: 50
     snapshot_freq: 10
     validation_freq: 10000
 
   sampling:
-    batch_size: 2 # 之前是 4，已更新
+    batch_size: 2
     last_only: True
 
 # 模型相关配置
 model:
-  model_name: "/data/sj/videomae_hf/videomae-base-finetuned-kinetics" # HuggingFace 路径或本地路径
-  num_classes: 5
+  model_name: "/data/sj/videomae_hf/videomae-base-finetuned-kinetics"
+  num_classes: 2  # 2 分类
   
   # LoRA 配置
   use_lora: true
@@ -33,7 +34,6 @@ model:
     lora_dropout: 0.1
     target_modules: ["query", "value"]
   
-  # 原 tic.yml 中的 VQmodel 和 Dit 配置似乎未在 videomae_lora 中直接使用，但保留以备参考
   in_channels: 3
   out_ch: 3
   ch: 128
@@ -84,20 +84,17 @@ optim:
   amsgrad: False
   eps: 0.00000001
 
-# 训练参数 (整合后的)
+# 训练参数
 train:
   is_train: true
   seed: 61
   device_ids: [0]
-  # num_epochs 优先使用 data.training.n_epochs，这里保留作为备用或覆盖
   num_epochs: 50 
   sample_frames: 16 
   
-  # 路径
   save_pic: "./out_pic/"
-  save_ckp: "./ckp/5class/"
+  save_ckp: "./ckp/head_binary/"
   
-  # 优化器 (映射到 optim)
   optimizer:
     base_lr: 1e-3
     weight_decay: 0.05

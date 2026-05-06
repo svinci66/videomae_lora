@@ -95,7 +95,7 @@ train:
   
   # 路径
   save_pic: "./out_pic/"
-  save_ckp: "./ckp/5class/"
+  save_ckp: "./ckp/"
   
   # 优化器 (映射到 optim)
   optimizer:
